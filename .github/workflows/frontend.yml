@@ -1,0 +1,64 @@
+---
+name: Desktop frontend
+on:
+  pull_request:
+    paths:
+      - .github/workflows/frontend.yml
+      - gui/**
+      - mullvad-management-interface/proto/**
+  workflow_dispatch:
+
+jobs:
+  check-frontend:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Read volta info
+        id: volta
+        uses: zoexx/github-action-json-file-properties@release
+        with:
+          file_path: 'gui/package.json'
+          prop_path: 'volta'
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ steps.volta.outputs.node }}
+          cache: 'npm'
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Update NPM
+        run: npm i -g npm@${{ steps.volta.outputs.npm }}
+
+      - name: Install dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: gui
+        run: npm run lint
+
+      - name: Build
+        working-directory: gui
+        run: npm run build
+
+      - name: Run headless test Linux
+        if: runner.os == 'Linux'
+        working-directory: gui
+        run: xvfb-run -a npm test
+
+      - name: Run headless test Windows
+        if: runner.os != 'Linux'
+        working-directory: gui
+        run: npm test
+
+      - name: Run Playwright tests
+        working-directory: gui
+        run: npm run e2e:no-build

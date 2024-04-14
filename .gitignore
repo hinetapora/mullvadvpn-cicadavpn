@@ -1,0 +1,134 @@
+/target/
+/gui/node_modules
+/gui/build
+/gui/scripts/ne_10m_populated_places/
+/gui/scripts/ne_50m_admin_0_countries/
+/gui/scripts/ne_50m_admin_1_states_provinces_lines/
+/gui/scripts/out/
+/gui/src/main/management_interface/
+/gui/test/e2e/screenshots/
+/gui/test-results/
+/build/
+/dist
+.idea/
+.DS_Store
+*.log
+/dist-assets/mullvad
+/dist-assets/mullvad.exe
+/dist-assets/mullvad-daemon
+/dist-assets/mullvad-daemon.exe
+/dist-assets/mullvad-exclude
+/dist-assets/mullvad-setup
+/dist-assets/mullvad-setup.exe
+/dist-assets/mullvad-problem-report
+/dist-assets/mullvad-problem-report.exe
+/dist-assets/libtalpid_openvpn_plugin.dylib
+/dist-assets/libtalpid_openvpn_plugin.so
+/dist-assets/talpid_openvpn_plugin.dll
+/dist-assets/openvpn
+/dist-assets/openvpn.exe
+/dist-assets/aarch64-apple-darwin/
+/dist-assets/x86_64-apple-darwin/
+/windows/version.h
+/windows/**/bin/
+/windows/**/*.user
+/android/keystore.properties
+/android/local.properties
+/android/play-api-key.json
+/wireguard/libwg/libwg.h
+/wireguard/libwg/libwg.exp
+/wireguard/libwg/exports.def
+**/.vs/
+*.bak
+android/.idea
+.vscode/
+# System files
+.DS_Store
+
+# Build outputs
+/build/
+/target/
+/ios/build/
+/ios/DerivedData/
+
+# Logs
+*.log
+/ios/*.log
+capture.pcap
+
+# Node dependencies
+node_modules/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+
+# Ignore packaging artifacts
+/dist-assets/
+/*.tgz
+
+# Editor settings
+.editorconfig
+
+# Ignore various specific files and certificates
+*.cer
+*.pem
+*.plist
+
+# Ignore specific scripts and compiled objects
+*.sh
+*.rb
+*.o
+*.d
+*.tbd
+
+# Xcode specific
+/ios/*.pbxuser
+/ios/*.mode1v3
+/ios/*.mode2v3
+/ios/*.perspectivev3
+/ios/xcuserdata
+/ios/*.xccheckout
+/ios/*.moved-aside
+/ios/*.xcworkspace
+/ios/!default.xcworkspace
+/ios/*.xcuserstate
+/ios/project.xcworkspace
+/ios/workspace.xcuserdata
+/ios/xcshareddata
+/ios/*.derivedDataPath
+/ios/IDEWorkspaceChecks.plist
+/ios/iOS Provisioning Profiles/
+/ios/*.ipa
+
+# Compiled Source
+*.com
+*.class
+*.dll
+*.exe
+*.dylib
+*.framework
+*.dSYM/
+*.AppIconset/
+*.app
+*.IPA
+
+# Provisioning Profiles and specific iOS files
+/ios/iOS Provisioning Profiles/
+
+# Dependency lock files
+Gemfile.lock
+requirements.txt
+
+# Configuration files
+pylintrc
+
+# Ignore all text files that might be secret keys or credentials
+*.key
+
+# Ignore specific logs and asset conversion scripts
+relays-prebuild.log
+convert-assets.rb

@@ -1,0 +1,293 @@
+---
+name: Android - Build and test
+on:
+  pull_request:
+    paths:
+      - '**'
+      - '!.github/workflows/**'
+      - '.github/workflows/android-app.yml'
+      - '!audits/**'
+      - '!ci/**'
+      - '!dist-assets/**'
+      - '!docs/**'
+      - '!graphics/**'
+      - '!gui/**'
+      - '!ios/**'
+      - '!scripts/**'
+      - '!windows/**'
+      - '!**/**.md'
+
+  workflow_dispatch:
+    inputs:
+      override_container_image:
+        description: Override container image
+        type: string
+        required: false
+  # Build if main is updated to ensure up-to-date caches are available
+  push:
+    branches: [main]
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Use custom container image if specified
+        if: ${{ github.event.inputs.override_container_image != '' }}
+        run: echo "inner_container_image=${{ github.event.inputs.override_container_image }}"
+          >> $GITHUB_ENV
+
+      - name: Use default container image and resolve digest
+        if: ${{ github.event.inputs.override_container_image == '' }}
+        run: |
+          echo "inner_container_image=$(cat ./building/android-container-image.txt)" >> $GITHUB_ENV
+
+    outputs:
+      container_image: ${{ env.inner_container_image }}
+
+  generate-relay-list:
+    name: Generate relay list
+    needs: prepare
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare.outputs.container_image }}
+    steps:
+      # Fix for HOME path overridden by GH runners when building in containers, see:
+      # https://github.com/actions/runner/issues/863
+      - name: Fix HOME path
+        run: echo "HOME=/root" >> $GITHUB_ENV
+
+      - name: Get date
+        id: get-date
+        shell: bash
+        run: |
+          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+
+      - name: Cache
+        uses: actions/cache@v3
+        id: cache-relay-list
+        with:
+          path: build/relays.json
+          key: relay-list-${{ steps.get-date.outputs.date }}
+
+      - name: Checkout repository
+        if: steps.cache-relay-list.outputs.cache-hit != 'true'
+        uses: actions/checkout@v3
+
+      - name: Generate
+        if: steps.cache-relay-list.outputs.cache-hit != 'true'
+        env:
+          RUSTFLAGS: --deny warnings
+        run: |
+          mkdir -p build
+          cargo run --bin relay_list > build/relays.json
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: relay-list
+          path: build/relays.json
+          if-no-files-found: error
+          retention-days: 1
+
+  build-native:
+    name: Build native
+    needs: prepare
+    runs-on: ubuntu-latest
+    container:
+      image: "${{ needs.prepare.outputs.container_image }}"
+    strategy:
+      matrix:
+        include:
+          - arch: "x86_64"
+            abi: "x86_64"
+            target: "x86_64-linux-android"
+          - arch: "i686"
+            abi: "x86"
+            target: "i686-linux-android"
+          - arch: "aarch64"
+            abi: "arm64-v8a"
+            target: "aarch64-linux-android"
+          - arch: "armv7"
+            abi: "armeabi-v7a"
+            target: "armv7-linux-androideabi"
+    steps:
+      # Fix for HOME path overridden by GH runners when building in containers, see:
+      # https://github.com/actions/runner/issues/863
+      - name: Fix HOME path
+        run: echo "HOME=/root" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Calculate native lib cache hash
+        id: native-lib-cache-hash
+        shell: bash
+        run: |
+          git config --global --add safe.directory $(pwd)
+          non_android_hash="$(git grep --cached -l '' -- ':!android/' \
+            | xargs -d '\n' sha1sum \
+            | sha1sum \
+            | awk '{print $1}')"
+          echo "native_lib_hash=$non_android_hash" >> $GITHUB_OUTPUT
+
+      - name: Cache native libraries
+        uses: actions/cache@v3
+        id: cache-native-libs
+        env:
+          cache_hash: ${{ steps.native-lib-cache-hash.outputs.native_lib_hash }}
+        with:
+          path: ./android/app/build/extraJni
+          key: android-native-libs-${{ runner.os }}-${{ matrix.abi }}-${{ env.cache_hash }}
+
+      - name: Build native libraries
+        if: steps.cache-native-libs.outputs.cache-hit != 'true'
+        env:
+          RUSTFLAGS: --deny warnings
+          BUILD_TYPE: debug
+        run: |
+          ARCHITECTURES="${{ matrix.abi }}"
+          UNSTRIPPED_LIB_PATH="$CARGO_TARGET_DIR/${{ matrix.target }}/$BUILD_TYPE/libmullvad_jni.so"
+          STRIPPED_LIB_PATH="./android/app/build/extraJni/${{ matrix.abi }}/libmullvad_jni.so"
+          NDK_TOOLCHAIN_STRIP_TOOL="$NDK_TOOLCHAIN_DIR/llvm-strip"
+          ./wireguard/build-wireguard-go.sh --android --no-docker
+          cargo build --target ${{ matrix.target }} --verbose --package mullvad-jni --features api-override
+          $NDK_TOOLCHAIN_STRIP_TOOL --strip-debug --strip-unneeded -o "$STRIPPED_LIB_PATH" "$UNSTRIPPED_LIB_PATH"
+
+      - name: Upload native libs
+        uses: actions/upload-artifact@v3
+        with:
+          name: native-libs
+          path: android/app/build/extraJni
+          if-no-files-found: error
+          retention-days: 1
+
+  build-app:
+    name: Build app and run unit tests
+    needs: [prepare, build-native, generate-relay-list]
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.prepare.outputs.container_image }}
+    steps:
+      # Fix for HOME path overridden by GH runners when building in containers, see:
+      # https://github.com/actions/runner/issues/863
+      - name: Fix HOME path
+        run: echo "HOME=/root" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: native-libs
+          path: android/app/build/extraJni
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: relay-list
+          path: build
+
+      - name: Build Android app
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: assembleOssProdDebug
+          gradle-version: wrapper
+          build-root-directory: android
+
+      - name: Run unit tests
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: |
+            testDebugUnitTest -x :test:arch:testDebugUnitTest
+            :app:testOssProdDebugUnitTest
+            :service:testOssProdDebugUnitTest
+          gradle-version: wrapper
+          build-root-directory: android
+          execution-only-caches: true
+
+      - name: Run arch tests
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: :test:arch:test --rerun-tasks
+          gradle-version: wrapper
+          build-root-directory: android
+          execution-only-caches: true
+
+      # Running the AGP lint here rather than in the separate lint workflow
+      # (android-kotlin-format-check.yml) since it's easier to make use of the running container,
+      # cache and previously ran tasks.
+      - name: Run AGP lint
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: lint
+          gradle-version: wrapper
+          build-root-directory: android
+          execution-only-caches: true
+
+      - name: Assemble instrumented test apk (app)
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: assembleOssProdAndroidTest
+          gradle-version: wrapper
+          build-root-directory: android
+          execution-only-caches: true
+
+      - name: Assemble instrumented test apk (mockapi)
+        uses: burrunan/gradle-cache-action@v1
+        with:
+          job-id: jdk17
+          arguments: :test:mockapi:assemble
+          gradle-version: wrapper
+          build-root-directory: android
+          execution-only-caches: true
+
+      - name: Upload apks
+        uses: actions/upload-artifact@v3
+        with:
+          name: apks
+          path: |
+            android/app/build/outputs/apk
+            android/test/mockapi/build/outputs/apk
+          if-no-files-found: error
+          retention-days: 1
+
+  instrumented-tests:
+    name: Run instrumented tests
+    runs-on: [self-hosted, android-emulator]
+    timeout-minutes: 30
+    needs: [build-app]
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: [app, mockapi]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: apks
+          path: android
+
+      - name: Run instrumented test script
+        shell: bash -ieo pipefail {0}
+        env:
+          AUTO_FETCH_TEST_HELPER_APKS: true
+        run: |
+          ./android/scripts/run-instrumented-tests.sh ${{ matrix.test-type }}
+
+      - name: Upload instrumentation report (${{ matrix.test-type }})
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ${{ matrix.test-type }}-instrumentation-report
+          path: /tmp/mullvad-${{ matrix.test-type }}-instrumentation-report
+          if-no-files-found: ignore
+          retention-days: 1
