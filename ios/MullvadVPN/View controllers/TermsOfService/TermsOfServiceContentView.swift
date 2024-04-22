@@ -19,7 +19,7 @@ class TermsOfServiceContentView: UIView {
         titleLabel.text = NSLocalizedString(
             "PRIVACY_NOTICE_HEADING",
             tableName: "TermsOfService",
-            value: "Welcome to the UnblockVPN! private beta",
+            value: "Welcome to the CicadaVPN!",
             comment: ""
         )
         titleLabel.lineBreakMode = .byWordWrapping
@@ -36,13 +36,7 @@ class TermsOfServiceContentView: UIView {
         bodyLabel.text = NSLocalizedString(
             "PRIVACY_NOTICE_BODY",
             tableName: "TermsOfService",
-            value: """
-            Free voucher code: 0000-0000-0000-0000
-
-            Feedback & questions: beta@unblockvpn.io.
-
-            We know its butt ugly, working on this :).
-            """,
+            value: "Your privacy matters. Our VPN app encrypts your data, ensuring no logging or tracking of your online activities. Stay secure with us.",
             comment: ""
         )
         return bodyLabel

@@ -21,6 +21,11 @@ DerivedData/
 !default.perspectivev3
 xcuserdata/
 
+# Ignore Xcode specific files in ios directory
+ios/*.pbxproj
+ios/xcworkspace/
+
+
 ## Other
 *.moved-aside
 *.xccheckout

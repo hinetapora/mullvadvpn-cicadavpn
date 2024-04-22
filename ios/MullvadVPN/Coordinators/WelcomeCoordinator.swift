@@ -89,10 +89,10 @@ extension WelcomeCoordinator: WelcomeViewControllerDelegate {
             value:
             """
             This is the name assigned to the device. Each device logged in on a \
-            Mullvad account gets a unique name that helps \
+            CicadaVPN account gets a unique name that helps \
             you identify it when you manage your devices in the app or on the website.
 
-            You can have up to 5 devices logged in on one UnblockVPN account.
+            You can have up to 5 devices logged in on one CicadaVPN account.
 
             If you log out, the device and the device name is removed. \
             When you log back in again, the device will get a new name.

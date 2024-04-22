@@ -27,13 +27,13 @@ enum ApplicationConfiguration {
     }
 
     /// Privacy policy URL.
-    static let privacyPolicyURL = URL(string: "https://www.unblockvpn.io/legal/privacy-policy")!
+    static let privacyPolicyURL = URL(string: "https://www.cicadavpn.com/legal/privacy-policy")!
 
     /// Make a start regarding  policy URL.
-    static let privacyGuidesURL = URL(string: "https://www.unblockvpn.io/legal/privacy-policy")!
+    static let privacyGuidesURL = URL(string: "https://www.cicadavpn.com/legal/privacy-policy")!
 
     /// FAQ & Guides URL.
-    static let faqAndGuidesURL = URL(string: "https://www.unblockvpn.io/support")!
+    static let faqAndGuidesURL = URL(string: "https://www.cicadavpn.com/support")!
 
     /// Maximum number of devices per account.
     static let maxAllowedDevices = 5
